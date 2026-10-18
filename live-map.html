@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Traffic & Satellite Navigation Map</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #map { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+    /* Search & Inspector Container */
+    .top-bar {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 360px;
+      max-width: calc(100vw - 30px);
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      padding: 6px 12px;
+    }
+
+    .search-box input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      padding: 6px;
+      color: #202124;
+      background: transparent;
+    }
+
+    .search-box button {
+      background: #1a73e8;
+      border: none;
+      color: white;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .search-box button:hover { background: #1557b0; }
+
+    /* Search Suggestions */
+    .suggestions {
+      background: white;
+      border-radius: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      list-style: none;
+      display: none;
+    }
+    .suggestions li {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #333;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    .suggestions li:hover { background: #f1f3f4; }
+
+    /* Road Classification Card */
+    .road-card {
+      background: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      display: none;
+    }
+    .road-card h4 { margin: 0 0 3px; font-size: 14px; color: #202124; }
+    .road-card p { margin: 0; font-size: 12px; color: #5f6368; }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+    .badge-highway { background: #feebc8; color: #c05621; border: 1px solid #fbd38d; }
+    .badge-service { background: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0; }
+
+    /* GPS Button */
+    .gps-btn {
+      position: absolute;
+      bottom: 25px;
+      right: 20px;
+      z-index: 1000;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    }
+
+    /* Traffic Status Legend */
+    .traffic-legend {
+      position: absolute;
+      bottom: 25px;
+      left: 15px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      line-height: 1.6;
+    }
+    .legend-bar {
+      display: inline-block;
+      width: 14px;
+      height: 4px;
+      margin-right: 6px;
+      border-radius: 2px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search city, road, or location..." autocomplete="off" />
+      <button onclick="handleSearch()">Search</button>
+    </div>
+    <ul id="suggestions" class="suggestions"></ul>
+
+    <div id="road-info" class="road-card">
+      <h4 id="road-title">Road Details</h4>
+      <p id="road-desc">Click any road on the map.</p>
+      <span id="road-tag" class="badge"></span>
+    </div>
+  </div>
+
+  <div class="traffic-legend">
+    <strong>Live Road Traffic:</strong><br>
+    <span class="legend-bar" style="background: #28a745;"></span> Clear / Free Flow<br>
+    <span class="legend-bar" style="background: #ffc107;"></span> Slowdown<br>
+    <span class="legend-bar" style="background: #dc3545;"></span> Congested<br>
+    <span class="legend-bar" style="background: #800000;"></span> Standstill Jam
+  </div>
+
+  <button class="gps-btn" onclick="startLiveGPS()">📍 Track My GPS</button>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ==========================================
+    // 1. PASTE YOUR TOMTOM API KEY HERE
+    // ==========================================
+    const TOMTOM_KEY = 'bVAFPp2stSyDTrHwLuDQxjFFKSsDLehq';
+
+    // 2. SATELLITE BASE LAYERS
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: '&copy; Esri, Earthstar Geographics'
+    });
+
+    const roadLabels = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    });
+
+    const satelliteWithLabels = L.layerGroup([esriSatellite, roadLabels]);
+
+    const cartoStreets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; CartoDB &copy; OpenStreetMap'
+    });
+
+    // 3. RAILWAY ROUTES
+    const railways = L.tileLayer('https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenRailwayMap'
+    });
+
+    // 4. REAL-TIME TOMTOM TRAFFIC OVERLAY
+    const liveTraffic = L.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_KEY}`, {
+      maxZoom: 19,
+      attribution: '&copy; TomTom Live Traffic'
+    });
+
+    // 5. INITIALIZE MAP (Loads satellite view, traffic jams, and railways together)
+    const map = L.map('map', {
+      center: [28.6139, 77.2090], // Default center (adjust to your city)
+      zoom: 14,
+      layers: [satelliteWithLabels, liveTraffic, railways]
+    });
+
+    // Layer Controls
+    L.control.layers({
+      "🛰️ Satellite Real-World": satelliteWithLabels,
+      "🗺️ Street Vector View": cartoStreets
+    }, {
+      "🚦 Live Traffic Flow": liveTraffic,
+      "🚆 Railway Routes": railways
+    }).addTo(map);
+
+    // 6. SEARCH BAR WITH AUTO-SUGGEST
+    const searchInput = document.getElementById('searchInput');
+    const suggestionsBox = document.getElementById('suggestions');
+    let searchMarker = null;
+    let timer;
+
+    searchInput.addEventListener('input', function() {
+      clearTimeout(timer);
+      const query = this.value.trim();
+      if (query.length < 3) {
+        suggestionsBox.style.display = 'none';
+        return;
+      }
+      timer = setTimeout(() => {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`)
+          .then(res => res.json())
+          .then(places => {
+            suggestionsBox.innerHTML = '';
+            if (!places.length) { suggestionsBox.style.display = 'none'; return; }
+            places.forEach(item => {
+              const li = document.createElement('li');
+              li.textContent = item.display_name;
+              li.onclick = () => {
+                suggestionsBox.style.display = 'none';
+                searchInput.value = item.display_name.split(',')[0];
+                const coords = [parseFloat(item.lat), parseFloat(item.lon)];
+                map.flyTo(coords, 15);
+                if (searchMarker) map.removeLayer(searchMarker);
+                searchMarker = L.marker(coords).addTo(map).bindPopup(`<b>${item.display_name}</b>`).openPopup();
+              };
+              suggestionsBox.appendChild(li);
+            });
+            suggestionsBox.style.display = 'block';
+          });
+      }, 350);
+    });
+
+    function handleSearch() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`)
+        .then(res => res.json())
+        .then(places => {
+          if (places.length) {
+            const coords = [parseFloat(places[0].lat), parseFloat(places[0].lon)];
+            map.flyTo(coords, 15);
+            if (searchMarker) map.removeLayer(searchMarker);
+            searchMarker = L.marker(coords).addTo(map).bindPopup(`<b>${places[0].display_name}</b>`).openPopup();
+          }
+        });
+    }
+
+    // 7. ROAD INSPECTOR (HIGHWAY VS SERVICE ROAD CLASSIFICATION)
+    const roadCard = document.getElementById('road-info');
+    const roadTitle = document.getElementById('road-title');
+    const roadDesc = document.getElementById('road-desc');
+    const roadTag = document.getElementById('road-tag');
+
+    map.on('click', function(e) {
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}&zoom=18&addressdetails=1`)
+        .then(res => res.json())
+        .then(data => {
+          roadCard.style.display = 'block';
+          const road = data.address.road || 'Unnamed Road';
+          const type = data.type || 'road';
+
+          roadTitle.innerText = road;
+
+          if (['motorway', 'trunk', 'primary', 'secondary', 'national_highway'].includes(type)) {
+            roadDesc.innerText = "High-speed multi-lane transit route";
+            roadTag.innerText = "⚡ Express Highway";
+            roadTag.className = "badge badge-highway";
+          } else if (['service', 'living_street', 'residential', 'track', 'unclassified'].includes(type)) {
+            roadDesc.innerText = "Local neighborhood / access corridor";
+            roadTag.innerText = "🚗 Service / Access Road";
+            roadTag.className = "badge badge-service";
+          } else {
+            roadDesc.innerText = `Type: ${type.replace('_', ' ')}`;
+            roadTag.innerText = "General Roadway";
+            roadTag.className = "badge badge-service";
+          }
+        })
+        .catch(() => { roadCard.style.display = 'none'; });
+    });
+
+    // 8. LIVE GPS TRACKING
+    let userMarker = null;
+    let userCircle = null;
+
+    function startLiveGPS() {
+      if (!navigator.geolocation) return alert("Geolocation not supported by browser.");
+      navigator.geolocation.watchPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const acc = pos.coords.accuracy;
+
+        if (!userMarker) {
+          userMarker = L.circleMarker([lat, lng], { radius: 9, color: '#fff', fillColor: '#1a73e8', fillOpacity: 1, weight: 3 }).addTo(map);
+          userCircle = L.circle([lat, lng], { radius: acc, color: '#1a73e8', fillOpacity: 0.15 }).addTo(map);
+          map.flyTo([lat, lng], 16);
+        } else {
+          userMarker.setLatLng([lat, lng]);
+          userCircle.setLatLng([lat, lng]);
+          userCircle.setRadius(acc);
+        }
+      }, () => alert("Please allow GPS location permission in your browser."), { enableHighAccuracy: true });
+    }
+  </script>
+</body>
+</html>

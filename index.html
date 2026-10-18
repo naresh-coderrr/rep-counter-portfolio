@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alex Rao — Engineer & Designer</title>
+<meta name="description" content="Portfolio: map-matching, computer vision and AI fitness tools." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<header class="nav">
+  <a href="#top" class="logo">AR<span>.</span></a>
+  <nav>
+    <a href="#work">Work</a>
+    <a href="#coach">AI Coach</a>
+    <a href="#stats">Stats</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="badge glass" id="statusBadge">
+      <span class="pulse"></span><span id="statusText">Available for projects</span>
+      <span class="sep">·</span><span id="localTime">--:--</span>
+    </div>
+    <h1>I build <span class="grad" id="typed">intelligent</span><span class="caret">|</span><br/>things that move.</h1>
+    <p class="lead">Engineer working across GPS map-matching, computer vision and interfaces that feel effortless. Currently turning pose detection into a pocket-sized personal trainer.</p>
+    <div class="cta">
+      <a href="#coach" class="btn primary">Try the AI Coach</a>
+      <a href="#work" class="btn ghost">View projects</a>
+    </div>
+    <div class="hero-stats">
+      <div><b data-count="12">0</b><small>Projects shipped</small></div>
+      <div><b data-count="6">0</b><small>Exercises tracked</small></div>
+      <div><b id="heroReps">0</b><small>Lifetime reps logged</small></div>
+    </div>
+  </section>
+
+  <!-- WORK -->
+  <section id="work" class="section">
+    <div class="section-head reveal"><span class="eyebrow">Selected work</span><h2>Projects</h2></div>
+    <div class="grid">
+      <a class="card glass big reveal" href="live-map.html">
+        <div class="thumb t1"><div class="road"></div></div>
+        <div class="meta"><h3>India MargMatch</h3><p>Kalman-filtered map matching of live telemetry on Indian highways.</p><div class="tags"><i>React</i><i>Leaflet</i><i>Kalman</i></div></div>
+      </a>
+      <a class="card glass tall reveal" href="#coach">
+        <div class="thumb t2" style="background-image:linear-gradient(180deg,transparent 40%,#09090b),url('push-ups.jpg')"></div>
+        <div class="meta"><h3>Pose Coach</h3><p>Rep counting and form feedback in the browser.</p><div class="tags"><i>MediaPipe</i><i>JS</i></div></div>
+      </a>
+      <div class="card glass reveal">
+        <div class="thumb t3"></div>
+        <div class="meta"><h3>Telemetry Lab</h3><p>Noise injection and filter tuning playground.</p><div class="tags"><i>Recharts</i></div></div>
+      </div>
+      <div class="card glass wide reveal">
+        <div class="thumb t4"></div>
+        <div class="meta"><h3>Network Explorer</h3><p>Browse highway catalogs and OSM geometry.</p><div class="tags"><i>OSM</i><i>TypeScript</i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COACH -->
+  <section id="coach" class="section">
+    <div class="section-head reveal"><span class="eyebrow">Live demo</span><h2>AI Fitness Coach</h2>
+      <p class="muted">Counts reps from your webcam using pose estimation. Everything runs locally; nothing is uploaded.</p></div>
+
+    <div class="coach glass reveal">
+      <div class="exercise-tabs" id="exTabs"></div>
+
+      <div class="coach-body">
+        <div class="stage">
+          <video id="video" playsinline muted></video>
+          <canvas id="overlay" width="960" height="540"></canvas>
+          <div class="stage-empty" id="stageEmpty">
+            <div class="ring-icon"></div>
+            <p>Camera is off</p>
+            <button class="btn primary" id="startCam">Start camera</button>
+            <button class="btn ghost" id="demoBtn">Manual mode</button>
+          </div>
+          <div class="hud">
+            <div class="hud-rep"><b id="repCount">0</b><small id="repLabel">push-ups</small></div>
+            <div class="hud-phase" id="phase">READY</div>
+          </div>
+          <div class="formbar"><span id="feedback">Get in position</span></div>
+          <div class="depth"><div id="depthFill"></div></div>
+        </div>
+
+        <aside class="panel">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 120 120" class="ring">
+              <circle cx="60" cy="60" r="52" class="ring-bg"/>
+              <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg"/>
+            </svg>
+            <div class="ring-text"><b id="setProgress">0/10</b><small>set target</small></div>
+          </div>
+
+          <div class="mini-grid">
+            <div class="mini"><small>Time</small><b id="timer">00:00</b></div>
+            <div class="mini"><small>Calories</small><b id="cal">0</b></div>
+            <div class="mini"><small>Tempo</small><b id="tempo">–</b></div>
+            <div class="mini"><small>Form</small><b id="formScore">100%</b></div>
+          </div>
+
+          <label class="field">Target reps <input type="number" id="target" value="10" min="1" max="500" /></label>
+          <label class="field">Sets <input type="number" id="setsTarget" value="3" min="1" max="20" /></label>
+          <label class="field">Rest (sec) <input type="number" id="restSec" value="30" min="5" max="300" /></label>
+
+          <div class="toggles">
+            <label><input type="checkbox" id="voice" checked/> Voice count</label>
+            <label><input type="checkbox" id="beep" checked/> Beep</label>
+            <label><input type="checkbox" id="skeleton" checked/> Skeleton</label>
+            <label><input type="checkbox" id="mirror" checked/> Mirror</label>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn small ghost" id="plus">+1 (Space)</button>
+            <button class="btn small ghost" id="minus">−1</button>
+            <button class="btn small primary" id="finish">Finish set</button>
+            <button class="btn small ghost" id="reset">Reset</button>
+          </div>
+          <button class="btn small ghost full" id="stopCam">Stop camera</button>
+          <div class="rest-banner" id="restBanner"><span>Rest</span><b id="restLeft">30</b><button id="skipRest">skip</button></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="stats" class="section">
+    <div class="section-head reveal"><span class="eyebrow">Progress</span><h2>Your training log</h2></div>
+    <div class="stats-grid">
+      <div class="glass stat reveal"><small>Today</small><b id="sToday">0</b><span>reps</span></div>
+      <div class="glass stat reveal"><small>Streak</small><b id="sStreak">0</b><span>days</span></div>
+      <div class="glass stat reveal"><small>Best set</small><b id="sBest">0</b><span>reps</span></div>
+      <div class="glass stat reveal"><small>Calories</small><b id="sCal">0</b><span>kcal</span></div>
+    </div>
+    <div class="glass chart-card reveal">
+      <div class="chart-head"><h3>Last 14 days</h3>
+        <div><button class="btn small ghost" id="exportBtn">Export CSV</button> <button class="btn small ghost" id="clearBtn">Clear</button></div></div>
+      <canvas id="chart" width="1000" height="260"></canvas>
+    </div>
+    <div class="two-col">
+      <div class="glass reveal"><h3>Achievements</h3><div class="badges" id="badges"></div></div>
+      <div class="glass reveal"><h3>Recent sets</h3><ul class="history" id="history"></ul></div>
+    </div>
+    <div class="glass reveal challenge"><h3>Daily challenge</h3><p id="challengeText"></p>
+      <div class="bar"><div id="challengeBar"></div></div></div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="section contact">
+    <div class="section-head reveal"><span class="eyebrow">Say hello</span><h2>Let's build something</h2></div>
+    <form class="glass form reveal" id="contactForm">
+      <input type="text" name="name" placeholder="Your name" required />
+      <input type="email" name="email" placeholder="Email address" required />
+      <textarea name="message" rows="4" placeholder="Tell me about your idea" required></textarea>
+      <button class="btn primary" type="submit">Send message</button>
+    </form>
+  </section>
+</main>
+
+<footer class="footer"><span>© 2026 Alex Rao</span><span class="muted">Built with care · dark by default</span></footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script src="app.js"></script>
+</body>
+</html>
